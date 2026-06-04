@@ -1,0 +1,26 @@
+{%- assign idx = 'now' | date: '%j' | minus: 0 | modulo: items.size -%}
+{%- assign current = items[idx] -%}
+
+{%- comment -%}
+  Bucket by longest unbreakable token, not total string length.
+  Whitespace is the only natural break point — punctuation stays attached,
+  so "Moderation." is one 11-char token that must fit in the canvas.
+{%- endcomment -%}
+{%- assign max_token = 0 -%}
+{%- assign tokens = current | split: ' ' -%}
+{%- for tok in tokens -%}
+  {%- assign tlen = tok | size -%}
+  {%- if tlen > max_token -%}{%- assign max_token = tlen -%}{%- endif -%}
+{%- endfor -%}
+
+{%- if max_token >= 11    -%}{%- assign size_class = 'value--large'     -%}
+{%- elsif max_token >= 9  -%}{%- assign size_class = 'value--xlarge'    -%}
+{%- elsif max_token >= 7  -%}{%- assign size_class = 'value--xxlarge'   -%}
+{%- else                  -%}{%- assign size_class = 'value--xxxlarge'  -%}
+{%- endif -%}
+
+<div class="view view--half_vertical">
+  <div class="layout layout--col layout--center gap--large">
+    <span class="value {{ size_class }} text--center">{{ current | escape }}</span>
+  </div>
+</div>

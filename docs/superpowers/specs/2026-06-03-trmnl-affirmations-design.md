@@ -108,35 +108,49 @@ Each affirmation surfaces ~28 days/year.
 
 ## Fit-to-box sizing
 
-Bucket by string length, map to TRMNL framework `value--*` class:
+Bucket by **longest unbreakable token**, not total string length. Whitespace is the only natural break in CSS text wrapping — punctuation stays attached to its word — so "Moderation." is one 11-char token that must fit within the 385px canvas width. Total length is misleading: a short entry with a long single word can overflow at the same size that a long entry of short words fits in.
+
+Map longest-token length to TRMNL framework `value--*` class (sizes verified against `trmnl.com/css/latest/plugins.css`):
 
 ```text
-chars    -> size class           -> approx px    bucket count
--------------------------------------------------------------
-<= 12    -> value--xxxlarge      -> ~120 px      3 entries
-13-24    -> value--xxlarge       -> ~80 px       4 entries
-25-40    -> value--xlarge        -> ~56 px       4 entries
-41+      -> value--large         -> ~40 px       2 entries
+max token   -> size class         -> framework px    bucket count
+-----------------------------------------------------------------
+<= 6        -> value--xxxlarge    -> 128 px          2 entries
+7-8         -> value--xxlarge     -> 96 px           3 entries
+9-10        -> value--xlarge      -> 74 px           4 entries
+>= 11       -> value--large       -> 58 px           4 entries
 ```
 
 ## Liquid template — `template/half_vertical.html`
 
 This file in git is the mirror of what gets pasted into the TRMNL dashboard's "Edit Markup" → `half_vertical` tab.
 
+The wrapping `.view` must live inside an ancestor with `class="trmnl"` — TRMNL's framework classes are all scoped under `.trmnl` and depend on CSS variables (`--screen-w`, `--half_vertical-w`, etc.) defined there. The dashboard's render context wraps automatically; the preview page wraps it manually.
+
 ```liquid
 {%- assign idx = 'now' | date: '%j' | minus: 0 | modulo: items.size -%}
 {%- assign current = items[idx] -%}
-{%- assign len = current | size -%}
 
-{%- if len <= 12     -%}{%- assign size_class = 'value--xxxlarge' -%}
-{%- elsif len <= 24  -%}{%- assign size_class = 'value--xxlarge'  -%}
-{%- elsif len <= 40  -%}{%- assign size_class = 'value--xlarge'   -%}
-{%- else             -%}{%- assign size_class = 'value--large'    -%}
+{%- comment -%}
+  Find the longest unbreakable token (whitespace-separated). Punctuation
+  stays attached to its word, so "Moderation." counts as one 11-char token.
+{%- endcomment -%}
+{%- assign max_token = 0 -%}
+{%- assign tokens = current | split: ' ' -%}
+{%- for tok in tokens -%}
+  {%- assign tlen = tok | size -%}
+  {%- if tlen > max_token -%}{%- assign max_token = tlen -%}{%- endif -%}
+{%- endfor -%}
+
+{%- if max_token >= 11    -%}{%- assign size_class = 'value--large'     -%}
+{%- elsif max_token >= 9  -%}{%- assign size_class = 'value--xlarge'    -%}
+{%- elsif max_token >= 7  -%}{%- assign size_class = 'value--xxlarge'   -%}
+{%- else                  -%}{%- assign size_class = 'value--xxxlarge'  -%}
 {%- endif -%}
 
 <div class="view view--half_vertical">
   <div class="layout layout--col layout--center gap--large">
-    <span class="value {{ size_class }} text--center">{{ current }}</span>
+    <span class="value {{ size_class }} text--center">{{ current | escape }}</span>
   </div>
 </div>
 ```
@@ -195,11 +209,13 @@ No unit tests. Visual preview *is* the test.
 
 ---
 
-## Open verification points (resolved during implementation)
+## Verification log (resolved during implementation)
 
-- Exact framework class names: `layout--center`, `text--center` — confirm in `trmnl.com/framework/docs/3.1`. If missing, substitute with correct class or inline `style="text-align: center"`.
-- Liquid response variable scoping: confirm `items` surfaces as a top-level Liquid variable (vs `data.items` or other wrapper). May require renaming the JSON top-level key.
-- TRMNL `plugins.css` public CDN URL for use in `index.html` — confirm.
+- ✅ Framework class names `layout--center`, `text--center`, `value--*`, `view--half_vertical`, `layout--col`, `gap--large` all present in `trmnl.com/css/latest/plugins.css` (verified by grep on downloaded CSS).
+- ✅ TRMNL framework classes are namespaced under `.trmnl` and depend on CSS variables defined there. The preview must wrap content in an ancestor with `class="trmnl"`. The dashboard renderer handles this automatically.
+- ✅ `plugins.css` CDN URL: `https://trmnl.com/css/latest/plugins.css` (the `usetrmnl.com` mirror 301-redirects, but Chrome treats it as 404 in some cases — use the canonical `trmnl.com` URL).
+- ⏳ Liquid response variable scoping (`items` vs `data.items`): resolved at dashboard wire-up time in Task 7. If TRMNL nests under `data`, rename in the template's `assign items = data.items` step.
+- ⏳ Bucket sizing for the TRMNL e-ink device: preview confirms fit in Chrome at 400×480 with TRMNL framework CSS. Device-side render verified in Task 7.
 
 ---
 

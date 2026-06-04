@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affirmations — TRMNL plugin preview</title>
+  <link rel="stylesheet" href="https://trmnl.com/css/latest/plugins.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 40px 20px;
+      background: #f3f4f6;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1f2937;
+    }
+    .device {
+      width: 400px;
+      height: 480px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 16px;
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    button:hover { background: #f9fafb; }
+    #counter { min-width: 60px; text-align: center; font-variant-numeric: tabular-nums; }
+    .footer {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .footer a { color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="device trmnl">
+    <div class="view view--half_vertical">
+      <div class="layout layout--col layout--center gap--large">
+        <span class="value" id="hero">…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="prev()">← prev</button>
+    <span id="counter">0 / 0</span>
+    <button onclick="next()">next →</button>
+    <button onclick="goToday()">today</button>
+  </div>
+
+  <div class="footer">
+    Live preview of today's affirmation. <a href="https://github.com/MattAltermatt/affirmations" target="_blank">View source ↗</a>
+  </div>
+
+  <script>
+    let items = [];
+    let cursor = 0;
+
+    function sizeClass(text) {
+      // Bucket by longest unbreakable token. Whitespace is the only natural break;
+      // punctuation stays attached, so "Moderation." is one 11-char token that must fit.
+      let maxToken = 0;
+      for (const tok of text.split(/\s+/)) {
+        if (tok.length > maxToken) maxToken = tok.length;
+      }
+      if (maxToken >= 11) return 'value--large';      // ~58px
+      if (maxToken >= 9)  return 'value--xlarge';     // ~74px
+      if (maxToken >= 7)  return 'value--xxlarge';    // ~96px
+      return 'value--xxxlarge';                       // ~128px
+    }
+
+    function dayOfYear() {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), 0, 0);
+      const diff = now - start;
+      return Math.floor(diff / 86400000);
+    }
+
+    function todayIndex() {
+      return dayOfYear() % items.length;
+    }
+
+    function render() {
+      const text = items[cursor];
+      const hero = document.getElementById('hero');
+      hero.className = 'value text--center ' + sizeClass(text);
+      hero.textContent = text;
+      document.getElementById('counter').textContent = `${cursor + 1} / ${items.length}`;
+    }
+
+    function prev() {
+      if (!items.length) return;
+      cursor = (cursor - 1 + items.length) % items.length;
+      render();
+    }
+
+    function next() {
+      if (!items.length) return;
+      cursor = (cursor + 1) % items.length;
+      render();
+    }
+
+    function goToday() {
+      if (!items.length) return;
+      cursor = todayIndex();
+      render();
+    }
+
+    fetch('./affirmations.json')
+      .then(r => r.json())
+      .then(data => {
+        items = data.items;
+        cursor = todayIndex();
+        render();
+      })
+      .catch(err => {
+        document.getElementById('hero').textContent = 'Failed to load.';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
